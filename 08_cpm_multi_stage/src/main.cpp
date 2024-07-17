@@ -32,6 +32,8 @@ void* produce(void* args){
              * 当queue的大小到达上限的时候阻塞producer, 
              * 等待consumer把数据pop到最小数目以后再开始push
              */
+
+            // 如果谓词返回false，wait会继续阻塞。如果谓词返回true，wait将立即返回，不再阻塞。
             cv_max_limit.wait(lock, [](){return q_.size() < max_limit;});
 
             Package p;
@@ -83,7 +85,7 @@ void* consume(void* args){
  *
  * 当生产速度 <= 消费速度时，queue里元素变化的速度有两个阶段
  * 1. 阻塞consumer, 等待queue元素达到最小值
- * 3. 阻塞consumer, 此时pruducer的速度和consumer的速度一致
+ * 2. 阻塞consumer, 此时producer的速度和consumer的速度一致
  */
 
 int main(){

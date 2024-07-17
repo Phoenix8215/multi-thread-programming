@@ -12,11 +12,11 @@
             "-I",
             "include",
             "-o",
-            "build/main.cpp.o",
-            "src/main.cpp"
+            "build/logger.cpp.o",
+            "src/logger.cpp"
         ],
-        "directory": "/home/phoenix/workstation/multi-thread-programming/02_pthread",
-        "file": "src/main.cpp"
+        "directory": "/home/phoenix/workstation/multi-thread-programming/07_cpm_std",
+        "file": "src/logger.cpp"
     },
     {
         "arguments": [
@@ -31,10 +31,10 @@
             "-I",
             "include",
             "-o",
-            "build/logger.cpp.o",
-            "src/logger.cpp"
+            "build/main.cpp.o",
+            "src/main.cpp"
         ],
-        "directory": "/home/phoenix/workstation/multi-thread-programming/02_pthread",
-        "file": "src/logger.cpp"
+        "directory": "/home/phoenix/workstation/multi-thread-programming/07_cpm_std",
+        "file": "src/main.cpp"
     }
 ]
