@@ -4,7 +4,8 @@
 #include <string>
 #include <vector>
 
-#define minx, y) ((x) < (y) ? (x) : (y))
+// 比较两个数的最小值
+#define min(x, y) ((x) < (y) ? (x) : (y))
 std::string changePath(std::string srcPath, std::string relativePath, std::string postfix, std::string tag);
 std::vector<std::string> loadDataList(std::string file);
 

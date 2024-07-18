@@ -1,9 +1,24 @@
-CONFIG        :=  ../../.config/Makefile.config
-CONFIG_LOCAL  :=  ./config/Makefile.config
+##########################################以下均为配置文件的内容##############################################################################
+##########################################以下均为配置文件的内容##############################################################################
+APP           :=  app
+CXX_VER       :=  14
+DEBUG         :=  0
+SHOW_WARNING  :=  0
 
-include $(CONFIG)
-include $(CONFIG_LOCAL)
 
+
+ifeq (, $(shell which bear))
+BEARCMD       :=
+else
+ifeq (bear 3.0.18, $(shell bear --version))
+BEARCMD       := bear --output config/compile_commands.json --
+else
+BEARCMD       := bear -o config/compile_commands.json
+endif
+endif
+
+########################################################################################################################
+########################################################################################################################
 BUILD_PATH    :=  build
 SRC_PATH      :=  src
 INC_PATH      :=  include
@@ -18,10 +33,10 @@ APP_DEPS      +=  $(wildcard $(SRC_PATH)/*.h)
 CXXFLAGS      :=  -std=c++$(CXX_VER) -pthread -fPIC
 
 INCS          :=  -I $(SRC_PATH) \
-				  -I $(OPENCV_PATH) \
+				  `pkg-config --cflags opencv4 2>/dev/null || pkg-config --cflags opencv` \
 				  -I $(INC_PATH)
 
-LIBS          :=  -lstdc++fs `pkg-config --libs opencv4`
+LIBS          :=  -lstdc++fs `pkg-config --libs opencv4` -pthread
 
 ifeq ($(DEBUG),1)
 CXXFLAGS      +=  -g -O0
@@ -37,8 +52,9 @@ endif
 
 all: 
 	@mkdir -p bin
+	@mkdir -p config
 	@$(BEARCMD) $(MAKE) $(APP)
-	@echo finished building $@. Have fun!!
+	@echo finished building $@. Have fun!!🥰
 
 run:
 	@$(MAKE) update
@@ -60,7 +76,7 @@ show:
 clean:
 	rm -rf $(APP)
 	rm -rf build
-	rm -rf config/compile_commands.json
+	rm -rf config 
 	rm -rf bin
 
 ifneq ($(MAKECMDGOALS), clean)

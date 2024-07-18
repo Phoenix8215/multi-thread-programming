@@ -16,6 +16,7 @@ using namespace std;
 
 namespace model{
 
+// img记录了图片数据和他们相对应的路径
 struct Job{
     img src;
     shared_ptr<promise<img>> tar;
@@ -39,6 +40,10 @@ public:
         /* 如果正在执行，那么就停止 */
         if (m_running){
             m_running = false;
+            // notify_all 被用来通知所有等待在条件变量 m_cv 上的线程，
+            // 这些线程可能正在等待某个条件（例如，队列中有新任务可处理）。
+            // notify_all 唤醒所有等待的线程，以便它们能够重新评估等待条件，并且在发现 m_running 
+            // 被设置为 false 后，可以安全地退出等待循环和终止它们的工作
             m_cv.notify_all();
         }
 
@@ -60,7 +65,9 @@ public:
         m_running = true;
         m_workers.reserve(m_batchSize);
         for (int i = 0; i < m_batchSize; i ++){
-            m_workers.push_back(thread(&ModelImpl::inference, this));
+            // 在多线程环境中，成员函数 inference 必须知道它操作的是哪个对象实例。
+            // 因此，需要将 this 指针传递给线程，以便线程能够正确地调用成员函数并访问对象的成员变量。
+            m_workers.emplace_back(thread(&ModelImpl::inference, this));
             LOGV(GREEN"[producer]created consumer%d" CLEAR, i);
         }
         return true;
@@ -75,7 +82,7 @@ public:
         vector<Job> jobs(m_batchSize);
         vector<shared_future<img>> futures(m_batchSize);
 
-        /* 设置一批job, 并对每一个job的promise设置对应的future*/
+        /* 设置一批job, 并对每一个job的promise设置对应的future */
         for (int i = 0; i < m_batchSize; i ++){
             jobs[i].src.data = cv::imread(m_imgPaths[i]);
             jobs[i].src.path = m_imgPaths[i];
@@ -85,7 +92,7 @@ public:
 
         /* 对jobQueue进行原子push */
         {
-            unique_lock<mutex> lock(m_mtx);
+            lock_guard<mutex> lock(m_mtx);
             for (int i = 0; i < m_batchSize; i ++){
                 m_jobQueue.emplace(move(jobs[i]));
             }

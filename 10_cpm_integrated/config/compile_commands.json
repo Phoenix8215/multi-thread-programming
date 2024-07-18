@@ -1,0 +1,86 @@
+[
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++14",
+            "-pthread",
+            "-fPIC",
+            "-O3",
+            "-w",
+            "-I",
+            "src",
+            "-I/usr/local/include/opencv4",
+            "-I",
+            "include",
+            "-o",
+            "build/model.cpp.o",
+            "src/model.cpp"
+        ],
+        "directory": "/home/phoenix/workstation/multi-thread-programming/10_cpm_integrated",
+        "file": "src/model.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++14",
+            "-pthread",
+            "-fPIC",
+            "-O3",
+            "-w",
+            "-I",
+            "src",
+            "-I/usr/local/include/opencv4",
+            "-I",
+            "include",
+            "-o",
+            "build/main.cpp.o",
+            "src/main.cpp"
+        ],
+        "directory": "/home/phoenix/workstation/multi-thread-programming/10_cpm_integrated",
+        "file": "src/main.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++14",
+            "-pthread",
+            "-fPIC",
+            "-O3",
+            "-w",
+            "-I",
+            "src",
+            "-I/usr/local/include/opencv4",
+            "-I",
+            "include",
+            "-o",
+            "build/utils.cpp.o",
+            "src/utils.cpp"
+        ],
+        "directory": "/home/phoenix/workstation/multi-thread-programming/10_cpm_integrated",
+        "file": "src/utils.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++14",
+            "-pthread",
+            "-fPIC",
+            "-O3",
+            "-w",
+            "-I",
+            "src",
+            "-I/usr/local/include/opencv4",
+            "-I",
+            "include",
+            "-o",
+            "build/logger.cpp.o",
+            "src/logger.cpp"
+        ],
+        "directory": "/home/phoenix/workstation/multi-thread-programming/10_cpm_integrated",
+        "file": "src/logger.cpp"
+    }
+]

@@ -11,11 +11,9 @@ int main(){
 
     timer::Timer timer;
 
-    string listPath  = "data/coco-2017_list.txt";
-    // string listPath  = "data/BDD100K_list.txt";
-    int    batchSize = 64;
+    int    batchSize = 32;
 
-    auto   producer  = model::create_model(listPath, batchSize);
+    auto   producer  = model::create_model(batchSize);
 
     // main端只需要调用一个forward就好了
     timer.start_cpu();

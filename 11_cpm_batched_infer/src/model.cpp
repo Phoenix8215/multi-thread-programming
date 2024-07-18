@@ -17,36 +17,27 @@ using namespace std;
 namespace model{
 
 struct Job{
-    string path;
+    cv::Mat frame;
     shared_ptr<promise<img>> tar;
 };
 
 class ModelImpl : public Model{
 
 public:
-    ModelImpl(string listPath, int batchSize):
-        m_listPath(listPath), m_batchSize(batchSize)
-    {
-        m_imgPaths = loadDataList(m_listPath);
-        m_imgPaths.resize(static_cast<int>(m_imgPaths.size() / m_batchSize) * m_batchSize);
-    };
+    ModelImpl(int batchSize):
+        m_batchSize(batchSize)
+    {};
 
-    /* 
-     * 析构函数: 
-     *  当ModelImpl可以释放资源的时候，也自动的把线程同步
-     */
     ~ModelImpl() {
         stop();
     };
 
     void stop() {
-        /* 如果正在执行，那么就停止, 并且通知所有正在阻塞的consumer*/
         if (m_running){
             m_running = false;
             m_cv.notify_all();
         }
 
-        /* 对于所有线程进行join处理 */
         for (int i = 0; i < m_batchSize; i ++){
             if (m_workers[i].joinable()){
                 LOGV(DGREEN"[consumer] consumer%d release" CLEAR, i);
@@ -55,16 +46,11 @@ public:
         }
     }
 
-    /*
-     * 初始化:
-     *  创建consumer所用的线程，个数为batchSize个
-     *  并为每一个consumer线程绑定消费者函数inference
-    */
     bool initialization(){
         m_running = true;
 
         m_workers.reserve(m_batchSize);
-        m_batchedImgPaths.reserve(m_imgIndex);
+        m_batchedFrames.reserve(m_batchSize);
 
         for (int i = 0; i < m_batchSize; i ++){
             m_workers.push_back(thread(&ModelImpl::inference, this));
@@ -73,117 +59,82 @@ public:
         return true;
     }
 
-    /*
-     * 前向推理:
-     *  在模型内部进行生产者和消费者的交互
-     *  每获取以及处理完一个batch的图片之后，进行一次同步，之后再获取下一个batch的图片
-     *  让生产者只要imageList没有读完数据，就进行commit
-    */
     void forward() override {
-        while (getBatch()){
+        cv::VideoCapture cap("/home/phoenix/workstation/multi-thread-programming/11_cpm_batched_infer/mot_people_medium.mp4");
+        if (!cap.isOpened()) {
+            LOG("Error opening video stream");
+            return;
+        }
+
+        while (m_running){
+            if (!getBatch(cap)){
+                break;
+            }
+
             auto results = commits();
             for (auto& res: results) {
                 img info = res.get();
             }
-            m_batchedImgPaths.clear();
+            m_batchedFrames.clear();
         }
         stop();
     }
 
-    /*
-     * 获取一个batch的数据, 给放到batchedImgPaths中
-    */
-    bool getBatch(){
-        if (m_imgIndex + m_batchSize >= m_imgPaths.size() + 1)
-            return false;
-
-        LOG("%3d/%3d: %s",
-            m_imgIndex + 1, m_imgPaths.size(), m_imgPaths.at(m_imgIndex).c_str());
-        
+    bool getBatch(cv::VideoCapture& cap){
         for (int i = 0; i < m_batchSize; i ++) {
-            m_batchedImgPaths.emplace_back(m_imgPaths.at(m_imgIndex++));
+            cv::Mat frame;
+            cap >> frame;
+            if (frame.empty()) {
+                return false;
+            }
+            m_batchedFrames.emplace_back(frame);
         }
         return true;
     }
 
-    /* 
-     * 生产者: producer
-     *  负责分配job, 每一个job负责管理一个图片数据，以及对应的future
-     *  返回一个future的vector, 分配对应每一个job
-    */
     vector<shared_future<img>> commits() {
         vector<Job> jobs(m_batchSize);
         vector<shared_future<img>> futures(m_batchSize);
 
-        /* 设置一批job, 并对每一个job的promise设置对应的future*/
         for (int i = 0; i < m_batchSize; i ++){
-            jobs[i].path = m_batchedImgPaths[i];
+            jobs[i].frame = m_batchedFrames[i];
             jobs[i].tar.reset(new promise<img>());
             futures[i] = jobs[i].tar->get_future();
         }
 
-        /* 对jobQueue进行原子push */
         {
-            unique_lock<mutex> lock(m_mtx);
+            lock_guard<mutex> lock(m_mtx);
             for (int i = 0; i < m_batchSize; i ++){
                 m_jobQueue.emplace(move(jobs[i]));
             }
         }
 
-        /* 唤醒所有堵塞的consumer */
         m_cv.notify_all();
 
         LOGV(BLUE"[producer]finished commits" CLEAR);
         return futures;
     }
 
-    /* 
-     * 消费者: consumer
-     *  消费者是一直在启动着的
-     *  只要jobQueue有数据，就处理job, 并更新job内部的promise
-     *  可以多个consumer处理同一个jobQueue
-    */
     void inference() {
         while(m_running){
             Job job;
             img result;
 
-            /* 对jobQueue进行原子pop */
             {
                 unique_lock<mutex> lock(m_mtx);
 
-                /* 
-                 * consumer不被阻塞只有两种情况：
-                 *  1. jobQueue不是空，这个时候需要consumer去consume
-                 *  2. model已经被析构了，所有的线程都需要停止
-                 *
-                 * 所以，相应的condition_variable的notify也需要有两个
-                 *  1. 当jobQueue已经填好了数据的时候
-                 *  2. 当model已经被析构的时候
-                 */
                 m_cv.wait(lock, [&](){
                     return !m_running || !m_jobQueue.empty();
                 });
 
-                /* 如果model已经被析构了，就跳出循环, 不再consume了*/
                 if (!m_running) break;
 
                 job = m_jobQueue.front();
                 m_jobQueue.pop();
             }
-            LOGV(DGREEN"[consumer] Consumer processing %s" CLEAR, job.path.c_str());
+            LOGV(DGREEN"[consumer] Consumer processing a frame" CLEAR);
 
-            /*
-             * 对取出来的job数据进行处理，并更新promise
-             * 这里面对应着batched inference之后的各个task的postprocess
-             * 由于相比于GPU上的操作，这里的postprocess一般会在CPU上操作，所以会比较慢
-             * 因此可以选择考虑多线程异步执行
-             * 这里为了达到耗时效果，选择在CPU端做如下操作:
-             *  1. letterbox resize
-             *  2. bgr2rgb
-             *  3. rgb2bgr
-             */
-            auto  image    = cv::imread(job.path.c_str());
+            auto  image    = job.frame;
             int   input_w  = image.cols;
             int   input_h  = image.rows;
             int   target_w = 800;
@@ -208,34 +159,35 @@ public:
             cv::cvtColor(tar, tar, cv::COLOR_BGR2RGB);
             cv::cvtColor(tar, tar, cv::COLOR_RGB2BGR);
 
-            result.path = changePath(job.path, "../results", ".png", "result");
+            result.path = generateUniquePath();  // Set a generic path for now
             result.data = tar;
 
             job.tar->set_value(result);
-            cv::imwrite(result.path, result.data);
-            // this_thread::sleep_for(chrono::milliseconds(2000));
+            // cv::imwrite(result.path, result.data);
             LOGV(DGREEN"[consumer] Finished processing, save to %s" CLEAR, result.path.c_str());
         }
     }
 
-
 private:
-    string             m_listPath;
-    vector<string>     m_imgPaths;
-    vector<string>     m_batchedImgPaths;
-    int                m_imgIndex{0};
-
+    vector<cv::Mat>    m_batchedFrames;
     int                m_batchSize;
+    int                m_frameIndex{0};   // 当前帧编号
     queue<Job>         m_jobQueue;
     mutex              m_mtx;
     condition_variable m_cv;
     vector<thread>     m_workers;
     bool               m_running{false};
+
+    string generateUniquePath() {
+        ostringstream ss;
+        // 如果数字的宽度不足 6 位，空白位置将被填充为零。
+        ss << "/home/phoenix/workstation/multi-thread-programming/11_cpm_batched_infer/data/results/frame_" << setw(6) << setfill('0') << m_frameIndex++ << ".png";
+        return ss.str();
+    }
 };
 
-// RAII模式对实现类进行资源获取即初始化
-std::shared_ptr<Model> create_model (std::string listPath, int batchSize){
-    shared_ptr<ModelImpl> ins(new ModelImpl(listPath, batchSize));
+std::shared_ptr<Model> create_model (int batchSize){
+    shared_ptr<ModelImpl> ins(new ModelImpl(batchSize));
     if (!ins->initialization())
         ins.reset(); //释放shared_ptr所拥有的对象
     return ins;

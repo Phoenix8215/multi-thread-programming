@@ -71,7 +71,7 @@ void* consume(void* args){
 
 /*
  * 我们设置一个新的案例：
- * 1. queue需要有produce的上限max_limit，和consume的下限min_limit
+ * 1. queue需要有produce的上限max_limit，和consumer的下限min_limit
  * 2. producer的生产速度比consumer的消费速度可快可慢
  * 3. 当queue中的数据超过上限limit的时候，阻塞producer, 直到consumer把所有的元素全部pop掉之后在produce
  * 4. 当queue中没有元素的时候，阻塞consumer, 直到producer把queue里面的元素填充到下限min_count以后再开始pop
@@ -80,7 +80,7 @@ void* consume(void* args){
  * 
  * 当生产速度 > 消费速度时，queue里元素变化的速度有三个阶段
  * 1. 阻塞consumer, 等待queue元素达到最小值
- * 2. consumer, producer同时进行，知道queue元素达到最大值
+ * 2. consumer, producer同时进行，直到queue元素达到最大值
  * 3. 阻塞producer, 此时pruducer的速度和consumer的速度一致
  *
  * 当生产速度 <= 消费速度时，queue里元素变化的速度有两个阶段

@@ -21,7 +21,7 @@ public:
     virtual void forward() = 0;
 };
 
-std::shared_ptr<Model> create_model (std::string img_list, int batchSize);
+std::shared_ptr<Model> create_model (int batchSize);
     
 }// namespace model
 #endif __MODEL_HPP__
